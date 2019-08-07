@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
-	"mapreduce"
+	"github.com/Carey6918/MIT-6.824-2018/src/mapreduce"
 	"os"
+	"strconv"
+	"strings"
+	"unicode"
 )
 
 //
@@ -15,6 +18,13 @@ import (
 //
 func mapF(filename string, contents string) []mapreduce.KeyValue {
 	// Your code here (Part II).
+	notALetter := func(char rune) bool { return !unicode.IsLetter(char) }
+	keys := strings.FieldsFunc(contents, notALetter)
+	var kvs []mapreduce.KeyValue
+	for _, key := range keys {
+		kvs = append(kvs, mapreduce.KeyValue{key, ""})
+	}
+	return kvs
 }
 
 //
@@ -24,6 +34,7 @@ func mapF(filename string, contents string) []mapreduce.KeyValue {
 //
 func reduceF(key string, values []string) string {
 	// Your code here (Part II).
+	return strconv.Itoa(len(values))
 }
 
 // Can be run in 3 ways:
