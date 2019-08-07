@@ -1,12 +1,16 @@
 package mapreduce
 
 import (
+	"encoding/json"
+	"fmt"
 	"hash/fnv"
+	"io/ioutil"
+	"os"
 )
 
 func doMap(
 	jobName string, // the name of the MapReduce job
-	mapTask int, // which map task this is
+	mapTask int,    // which map task this is
 	inFile string,
 	nReduce int, // the number of reduce task that will be run ("R" in the paper)
 	mapF func(filename string, contents string) []KeyValue,
@@ -53,6 +57,45 @@ func doMap(
 	//
 	// Your code here (Part I).
 	//
+
+	// 读取inFile中的内容，并map成kv
+	f, err := os.Open(inFile)
+	if err != nil {
+		fmt.Printf("doMap.Open(%s) failed, err= %v", inFile, err)
+		return
+	}
+	defer f.Close()
+	contents, err := ioutil.ReadAll(f)
+	if err != nil {
+		fmt.Printf("doMap.ReadAll(%s) failed, err= %v", inFile, err)
+		return
+	}
+	kvs := mapF(inFile, string(contents))
+
+	// 创建中间文件
+	files := make([]*os.File, nReduce)
+	for i := range files {
+		f, err := os.Create(reduceName(jobName, mapTask, i))
+		if err != nil {
+			fmt.Printf("doMap.Create(%s) failed, err= %v", reduceName(jobName, mapTask, i), err)
+			return
+		}
+		files[i] = f
+	}
+
+	// 将kv按规则写入中间文件
+	for _, kv := range kvs {
+		r := ihash(kv.Key) % nReduce
+		err := json.NewEncoder(files[r]).Encode(&kv)
+		if err != nil {
+			fmt.Printf("doMap.Encode(%s) failed, err= %v", files[r].Name(), err)
+			return
+		}
+	}
+	for _, file := range files {
+		file.Close()
+	}
+
 }
 
 func ihash(s string) int {

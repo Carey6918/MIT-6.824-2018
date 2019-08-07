@@ -1,10 +1,17 @@
 package mapreduce
 
+import (
+	"fmt"
+	"os"
+	"sort"
+	"encoding/json"
+)
+
 func doReduce(
 	jobName string, // the name of the whole MapReduce job
 	reduceTask int, // which reduce task this is
 	outFile string, // write the output here
-	nMap int, // the number of map tasks that were run ("M" in the paper)
+	nMap int,       // the number of map tasks that were run ("M" in the paper)
 	reduceF func(key string, values []string) string,
 ) {
 	//
@@ -44,4 +51,55 @@ func doReduce(
 	//
 	// Your code here (Part I).
 	//
+
+	// 获取所有中间文件
+	files := make([]*os.File, nMap)
+	for i := range files {
+		f, err := os.Open(reduceName(jobName, i, reduceTask))
+		if err != nil {
+			fmt.Printf("doReduce.Open(%s) failed, err= %v", reduceName(jobName, i, reduceTask), err)
+			return
+		}
+		files[i] = f
+	}
+
+	// 读取所有中间文件内的kv
+	kvmap := make(map[string][]string)
+	for _, file := range files {
+		enc := json.NewDecoder(file)
+		var kv KeyValue
+		for {
+			err := enc.Decode(&kv)
+			if err != nil {
+				break
+			}
+			kvmap[kv.Key] = append(kvmap[kv.Key], kv.Value)
+		}
+	}
+	// 对key排序
+	var keys []string
+	for k := range kvmap {
+		keys = append(keys, k)
+	}
+
+	// reduce排序后的kv，将结果写入outFile
+	f, err := os.Create(outFile)
+	if err != nil {
+		fmt.Printf("doReduce.Create(%s) failed, err= %v", outFile, err)
+		return
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := reduceF(k, kvmap[k])
+		err := enc.Encode(KeyValue{k, v})
+		if err != nil {
+			fmt.Printf("doReduce.Encode(%s) failed, err= %v", outFile, err)
+			return
+		}
+	}
+	for _, file := range files {
+		file.Close()
+	}
 }
