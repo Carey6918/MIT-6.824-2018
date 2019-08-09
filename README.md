@@ -23,7 +23,7 @@
 - [ ] LEC 20: Dynamo
 - [ ] LEC 21: Peer-to-peer: Bitcoin
 
-- [ ] Lab 1: MapReduce
+- [x] Lab 1: MapReduce
 - [ ] Lab 2: Raft
 - [ ] Lab 3: KV Raft
 - [ ] Lab 4: Sharded KV
