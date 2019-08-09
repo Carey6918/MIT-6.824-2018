@@ -36,7 +36,6 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	wg := sync.WaitGroup{}
 	wg.Add(ntasks)
 	for task := 0; task < ntasks; task++ {
-		worker := <-registerChan
 		args := &DoTaskArgs{
 			JobName:       jobName,
 			Phase:         phase,
@@ -46,8 +45,11 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 		if phase == mapPhase {
 			args.File = mapFiles[task]
 		}
-		go func() {
+		// 我这里之前好像又写了个bug...go匿名函数没有传参..所以拿到的值都是最后一次的
+		go func(args *DoTaskArgs, registerChan chan string) {
 			for {
+				// Part 4做的改动，是在这里取worker，一个worker失败以后，就直接扔掉了，换一个worker重试
+				worker := <-registerChan
 				success := call(worker, "Worker.DoTask", args, nil)
 				// 如果成功了，则将worker放回chan，如果失败了，就一直重新执行
 				if success {
@@ -57,7 +59,7 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 				}
 			}
 
-		}()
+		}(args, registerChan)
 	}
 	wg.Wait()
 	fmt.Printf("Schedule: %v done\n", phase)
