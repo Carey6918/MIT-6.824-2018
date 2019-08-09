@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/Carey6918/MIT-6.824-2018/src/mapreduce"
+	"mapreduce"
 	"os"
 	"strconv"
 	"strings"
